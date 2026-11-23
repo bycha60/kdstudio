@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#05060b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="KD Studio">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>KD Slowed & Reverb Studio</title>
+<style>
+:root{
+  --bg:#05060b; --card:rgba(255,255,255,.045); --stroke:rgba(255,255,255,.09);
+  --txt:#e9ecf5; --mut:#868ba0; --cyan:#66fcf1; --purple:#a855f7; --pink:#f472b6;
+  --green:#34d399; --blue:#60a5fa; --red:#f87171;
+  --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,Helvetica,Arial,sans-serif;
+  min-height:100dvh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;-webkit-appearance:none;appearance:none}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* ---------- Arka plan aurora ---------- */
+.aurora{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.aurora i{position:absolute;width:60vmax;height:60vmax;border-radius:50%;filter:blur(90px);opacity:.34;animation:drift 24s ease-in-out infinite alternate;will-change:transform}
+.aurora i:nth-child(1){background:#4c1d95;left:-22vmax;top:-22vmax}
+.aurora i:nth-child(2){background:#0e7490;right:-26vmax;top:8vmax;animation-delay:-9s}
+.aurora i:nth-child(3){background:#9d174d;left:8vmax;bottom:-34vmax;animation-delay:-15s;opacity:.24}
+@keyframes drift{to{transform:translate(9vmax,6vmax) scale(1.18)}}
+
+.app{width:100%;max-width:720px;margin:0 auto;padding:calc(18px + var(--safe-t)) 14px calc(120px + var(--safe-b))}
+
+/* ---------- Hero ---------- */
+.hero{text-align:center;padding:14px 0 18px}
+.hero h1{
+  margin:0;font-size:clamp(30px,9vw,46px);font-weight:800;letter-spacing:.5px;line-height:1.05;
+  background:linear-gradient(90deg,#66fcf1,#a855f7,#f472b6,#66fcf1);background-size:300% 100%;
+  -webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 8s linear infinite;
+  filter:drop-shadow(0 0 18px rgba(102,252,241,.28));
+}
+@keyframes shine{to{background-position:300% 0}}
+.hero p{margin:8px 0 0;font-size:10.5px;letter-spacing:4px;text-transform:uppercase;color:var(--mut)}
+#installBtn{margin-top:12px;padding:8px 16px;border-radius:99px;border:1px solid rgba(102,252,241,.4);background:rgba(102,252,241,.08);color:var(--cyan);font-size:12px;font-weight:600}
+
+/* ---------- Kartlar ---------- */
+.card{
+  background:var(--card);border:1px solid var(--stroke);border-radius:20px;padding:16px;margin-bottom:14px;
+  -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+  box-shadow:0 10px 40px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.05);
+}
+.card h2{margin:0 0 12px;font-size:11px;letter-spacing:2.5px;text-transform:uppercase;color:var(--mut);font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px}
+body:not(.ready) .needs-audio{opacity:.35;pointer-events:none;filter:saturate(.4)}
+
+/* ---------- İçe aktar ---------- */
+.drop{
+  display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
+  border:1.5px dashed rgba(102,252,241,.35);border-radius:18px;padding:22px 14px;cursor:pointer;
+  background:linear-gradient(135deg,rgba(102,252,241,.06),rgba(168,85,247,.06));transition:.25s;
+}
+.drop:hover,.drop.over{border-color:var(--cyan);box-shadow:0 0 28px rgba(102,252,241,.18);transform:translateY(-1px)}
+.drop .ico{font-size:30px;filter:drop-shadow(0 0 10px rgba(102,252,241,.5))}
+.drop b{font-size:15px}
+.drop small{color:var(--mut);font-size:12px}
+body.ready .drop{flex-direction:row;justify-content:center;padding:12px;gap:10px}
+body.ready .drop .ico{font-size:18px}
+body.ready .drop small{display:none}
+
+/* ---------- Oynatıcı ---------- */
+#track{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:14px 0 8px}
+#viz{width:100%;height:110px;display:block;border-radius:14px;background:rgba(0,0,0,.28)}
+.timeline{position:relative;height:30px;display:flex;align-items:center;cursor:pointer;touch-action:none;margin-top:6px}
+.timeline .bar{width:100%;height:6px;border-radius:6px;background:rgba(255,255,255,.08);overflow:hidden}
+.timeline .fill{height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--purple),var(--pink));border-radius:6px;box-shadow:0 0 12px rgba(102,252,241,.6)}
+.timeline .knob-dot{position:absolute;left:0;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:#fff;box-shadow:0 0 12px var(--cyan)}
+.times{display:flex;justify-content:space-between;font:600 12px ui-monospace,Menlo,Consolas,monospace;color:var(--cyan)}
+.transport{display:flex;justify-content:center;gap:10px;margin-top:10px}
+.tbtn{height:44px;min-width:64px;padding:0 14px;border-radius:14px;border:1px solid var(--stroke);background:rgba(255,255,255,.05);font-size:13px;font-weight:600;transition:.2s}
+.tbtn:active{transform:scale(.95);background:rgba(102,252,241,.12)}
+
+/* ---------- Presetler ---------- */
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;margin:0 -2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;padding:10px 16px;border-radius:99px;border:1px solid var(--stroke);background:rgba(255,255,255,.05);font-size:13px;font-weight:600;white-space:nowrap;transition:.2s}
+.chip:active{transform:scale(.95)}
+.chip.hot{border-color:rgba(168,85,247,.5);background:rgba(168,85,247,.12);color:#e9d5ff}
+
+.mini{padding:6px 12px;border-radius:99px;border:1px solid var(--stroke);background:rgba(255,255,255,.05);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mut)}
+.mini:active{color:var(--cyan);border-color:var(--cyan)}
+
+/* ---------- Efekt rafı ---------- */
+#fx{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.fx{
+  --c:var(--green);position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:12px 6px 10px;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.015));
+  border:1px solid rgba(255,255,255,.06);transition:.25s;
+}
+.fx.active{border-color:color-mix(in srgb,var(--c) 35%,transparent);box-shadow:0 0 22px color-mix(in srgb,var(--c) 14%,transparent)}
+.fx-label{font-size:10px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;opacity:.9;text-align:center}
+.knob{position:relative;width:72px;height:72px;touch-action:none;cursor:ns-resize;outline:none;border-radius:50%}
+.knob:focus-visible{box-shadow:0 0 0 2px var(--cyan)}
+.knob svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.kt,.kp{fill:none;stroke-width:5;stroke-linecap:round;stroke-dasharray:122.52 163.36}
+.kt{stroke:rgba(255,255,255,.07)}
+.kp{stroke:var(--c);stroke-dasharray:0 163.36;filter:drop-shadow(0 0 5px var(--c))}
+.dial{position:absolute;inset:13px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#2a2c35,#0b0c10 70%);box-shadow:inset 0 1px 2px rgba(255,255,255,.12),0 6px 14px rgba(0,0,0,.7);transition:transform .05s linear}
+.dial i{position:absolute;left:50%;top:4px;width:3px;height:11px;margin-left:-1.5px;border-radius:3px;background:#fff;box-shadow:0 0 6px var(--c)}
+.fx-val{font:700 12px ui-monospace,Menlo,Consolas,monospace;color:var(--mut);transition:.2s;min-height:15px}
+.fx.active .fx-val{color:var(--c);text-shadow:0 0 10px var(--c)}
+.fx.off .knob,.fx.off .fx-val,.fx.off .fx-label{opacity:.28;pointer-events:none}
+.sw{position:relative;width:40px;height:22px;border-radius:22px;border:1px solid rgba(248,113,113,.45);background:#121318;box-shadow:0 0 8px rgba(248,113,113,.3);transition:.25s;padding:0}
+.sw::before{content:'';position:absolute;left:3px;top:3px;width:14px;height:14px;border-radius:50%;background:var(--red);box-shadow:0 0 6px var(--red);transition:.25s}
+.sw.on{border-color:rgba(52,211,153,.5);box-shadow:0 0 8px rgba(52,211,153,.3)}
+.sw.on::before{transform:translateX(18px);background:var(--green);box-shadow:0 0 6px var(--green)}
+.sw::after{content:'';position:absolute;inset:-10px -6px}
+.keysel{display:flex;gap:2px;background:#030304;border:1px solid rgba(168,85,247,.25);border-radius:6px;padding:1px 3px}
+.keysel select{background:transparent;border:0;color:var(--purple);font:700 10px ui-monospace,monospace;outline:none;-webkit-appearance:none;appearance:none;text-align:center;padding:2px}
+.keysel option{background:#0b0c10;color:#fff}
+
+/* ---------- Equalizer ---------- */
+.eq{display:flex;gap:2px;overflow-x:auto;padding:4px 0 2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.eq::-webkit-scrollbar{display:none}
+.band{flex:1 0 24px;display:flex;flex-direction:column;align-items:center;gap:5px;font:600 9.5px ui-monospace,Menlo,monospace;color:var(--mut)}
+.band .track{position:relative;width:30px;height:140px;touch-action:none;cursor:ns-resize;display:flex;justify-content:center}
+.band .rail{position:absolute;top:0;bottom:0;width:4px;border-radius:4px;background:rgba(255,255,255,.07)}
+.band .mid{position:absolute;left:5px;right:5px;top:50%;height:1px;background:rgba(255,255,255,.18)}
+.band .fillb{position:absolute;width:4px;border-radius:4px;background:linear-gradient(var(--cyan),var(--purple));box-shadow:0 0 8px rgba(102,252,241,.6)}
+.band .thumb{position:absolute;left:50%;width:20px;height:10px;margin:5px 0 0 -10px;border-radius:5px;background:#fff;box-shadow:0 0 10px var(--cyan),0 2px 4px rgba(0,0,0,.6);transform:translateY(0)}
+.band .db{color:#cfd3e2;min-height:12px}
+
+/* ---------- Dışa aktar ---------- */
+.seg{display:flex;gap:6px;padding:4px;border-radius:14px;background:rgba(0,0,0,.3);border:1px solid var(--stroke)}
+.seg button{flex:1;border:1px solid transparent;border-radius:10px;background:transparent;padding:10px 4px;font-size:13px;font-weight:700;color:var(--mut);transition:.2s}
+.seg button small{display:block;font-size:10px;font-weight:500;margin-top:2px;opacity:.7}
+.seg button.on{color:var(--cyan);border-color:rgba(102,252,241,.35);background:rgba(102,252,241,.07);text-shadow:0 0 10px rgba(102,252,241,.5)}
+.btn{width:100%;margin-top:12px;height:50px;border-radius:14px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);font-weight:700;font-size:14px;letter-spacing:.5px;transition:.2s}
+.btn:active{transform:scale(.98)}
+.btn.primary{border:0;background:linear-gradient(135deg,#06b6d4,#8b5cf6 55%,#ec4899);color:#fff;box-shadow:0 8px 26px rgba(139,92,246,.4)}
+.btn:disabled{opacity:.4}
+.prog{margin-top:12px;height:34px;border-radius:12px;background:rgba(0,0,0,.35);position:relative;overflow:hidden;border:1px solid var(--stroke)}
+.prog div{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,rgba(6,182,212,.5),rgba(236,72,153,.5));transition:width .15s}
+.prog span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700}
+#result{margin-top:14px;padding-top:14px;border-top:1px solid var(--stroke)}
+#result audio{width:100%;height:40px}
+#result .meta{font-size:12px;color:var(--mut);margin:8px 0 2px;word-break:break-all}
+.row{display:flex;gap:8px}
+.row .btn{margin-top:8px}
+
+.tips{font-size:12px;line-height:1.55;color:var(--mut)}
+.tips b{color:var(--txt)}
+
+/* ---------- Alt dock ---------- */
+.dock{
+  position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;justify-content:center;
+  padding:10px 14px calc(10px + var(--safe-b));
+  background:linear-gradient(to top,rgba(5,6,11,.95) 55%,rgba(5,6,11,0));
+}
+.dock-in{width:100%;max-width:720px;display:flex;gap:10px;padding:8px;border-radius:22px;background:rgba(18,19,26,.78);border:1px solid var(--stroke);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:0 10px 40px rgba(0,0,0,.6)}
+#play{flex:0 0 auto;min-width:132px;height:54px;border-radius:16px;border:1px solid rgba(102,252,241,.5);background:rgba(102,252,241,.1);color:var(--cyan);font-weight:800;font-size:15px;letter-spacing:.5px;text-shadow:0 0 10px rgba(102,252,241,.6)}
+#play:active{transform:scale(.97)}
+#dockExport{flex:1;height:54px;border-radius:16px;border:0;background:linear-gradient(135deg,#06b6d4,#8b5cf6 55%,#ec4899);color:#fff;font-weight:800;font-size:15px;letter-spacing:.5px;box-shadow:0 6px 22px rgba(139,92,246,.45)}
+#dockExport:active{transform:scale(.98)}
+#dockExport:disabled,#play:disabled{opacity:.35;box-shadow:none}
+
+#toast{position:fixed;left:50%;bottom:calc(100px + var(--safe-b));transform:translate(-50%,20px);opacity:0;pointer-events:none;z-index:50;
+  max-width:88vw;padding:12px 18px;border-radius:14px;background:rgba(20,21,30,.95);border:1px solid var(--stroke);font-size:13px;font-weight:600;text-align:center;transition:.3s;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (min-width:700px){ .app{padding-top:34px} #viz{height:140px} }
+@media (prefers-reduced-motion:reduce){ .aurora i,.hero h1{animation:none} }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.1/lame.all.min.js"></script>
+</head>
+<body>
+<div class="aurora"><i></i><i></i><i></i></div>
+
+<main class="app">
+  <header class="hero">
+    <h1>KD Slowed &amp; Reverb</h1>
+    <p>Studio Quality Pro Suite</p>
+    <button id="installBtn" hidden>📲 Uygulamayı Yükle</button>
+  </header>
+
+  <!-- İçe aktar -->
+  <section class="card">
+    <label class="drop" id="drop" for="file">
+      <span class="ico">🎵</span>
+      <b id="dropTitle">Şarkı Seç</b>
+      <small>Telefondan veya bilgisayardan ses dosyası ekle (MP3, M4A, WAV, FLAC, OGG…)<br>ya da buraya sürükle bırak</small>
+    </label>
+    <input class="sr-only" type="file" id="file" accept="audio/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.opus,.mp4">
+
+    <div id="track">Sistem hazır. Bir şarkı yükleyin…</div>
+    <canvas id="viz"></canvas>
+    <div class="timeline needs-audio" id="timeline"><div class="bar"><div class="fill" id="fill"></div></div><div class="knob-dot" id="dot"></div></div>
+    <div class="times"><span id="cur">00:00</span><span id="tot">00:00</span></div>
+    <div class="transport needs-audio">
+      <button class="tbtn" id="back">⏪ 10sn</button>
+      <button class="tbtn" id="restart">⏮ Başa</button>
+      <button class="tbtn" id="fwd">10sn ⏩</button>
+    </div>
+  </section>
+
+  <!-- Presetler -->
+  <section class="card needs-audio">
+    <h2>Hazır Ayarlar</h2>
+    <div class="chips">
+      <button class="chip hot" data-p="slowed">🌙 Slowed + Reverb</button>
+      <button class="chip hot" data-p="super">🌌 Super Slowed</button>
+      <button class="chip" data-p="night">⚡ Nightcore</button>
+      <button class="chip" data-p="8d">🎧 8D Audio</button>
+      <button class="chip" data-p="bass">🔊 Bass Boost</button>
+      <button class="chip" data-p="reset">↺ Sıfırla</button>
+    </div>
+  </section>
+
+  <!-- Efektler -->
+  <section class="card needs-audio">
+    <h2>Studio Effects <button class="mini" id="rackReset">Sıfırla</button></h2>
+    <div id="fx"></div>
+    <p class="tips" style="margin:12px 0 0">Düğmeyi <b>yukarı/aşağı sürükle</b>, <b>çift dokun</b> = varsayılana dön, alttaki anahtar efekti kapatır.</p>
+  </section>
+
+  <!-- EQ -->
+  <section class="card needs-audio">
+    <h2>16 Bantlı Equalizer <button class="mini" id="eqReset">Sıfırla</button></h2>
+    <div class="eq" id="eq"></div>
+  </section>
+
+  <!-- Dışa aktar -->
+  <section class="card needs-audio" id="export">
+    <h2>Kaydet / Dışa Aktar</h2>
+    <div class="seg" id="fmt">
+      <button data-f="mp3-128">MP3 128<small>Hızlı</small></button>
+      <button data-f="mp3-320">MP3 320<small>Stüdyo</small></button>
+      <button data-f="wav">WAV<small>Kayıpsız</small></button>
+    </div>
+    <button class="btn primary" id="render">Oluştur</button>
+    <div class="prog" id="prog" hidden><div id="progBar"></div><span id="progTxt">Hazırlanıyor…</span></div>
+    <div id="result" hidden>
+      <audio id="resAudio" controls playsinline></audio>
+      <div class="meta" id="resMeta"></div>
+      <div class="row">
+        <button class="btn primary" id="share">📥 Telefona Kaydet / Paylaş</button>
+        <button class="btn" id="dl">İndir</button>
+      </div>
+      <p class="tips" style="margin:10px 0 0"><b>iPhone:</b> Açılan menüden “Dosyalara Kaydet”i seç. <b>Android:</b> Paylaş menüsünden Dosyalar/Drive’ı seç ya da “İndir”e bas.</p>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Ana Ekrana Ekle</h2>
+    <p class="tips" style="margin:0"><b>iPhone (Safari):</b> Paylaş → “Ana Ekrana Ekle”. <b>Android (Chrome):</b> ⋮ → “Uygulamayı yükle”. Yüklenince tam ekran uygulama gibi açılır.</p>
+  </section>
+</main>
+
+<div class="dock">
+  <div class="dock-in">
+    <button id="play" disabled>▶ Oynat</button>
+    <button id="dockExport" disabled>Dışa Aktar</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+(()=>{
+'use strict';
+const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+/* ============ PARAMETRELER ============ */
+const P={
+  speed:   {label:'Speed',      min:.5,  max:4,    step:.01, def:1,   neutral:1,  c:'#34d399', fmt:v=>v.toFixed(2)+'x'},
+  pitch:   {label:'Pitch',      min:-1200,max:1200,step:10,  def:0,   neutral:0,  c:'#34d399', fmt:v=>(v>0?'+':'')+Math.round(v)+' ct'},
+  reverb:  {label:'Reverb',     min:0,   max:1,    step:.01, def:.3,  neutral:0,  c:'#34d399', fmt:v=>Math.round(v*100)+'%'},
+  bass:    {label:'Bass',       min:0,   max:15,   step:.5,  def:0,   neutral:0,  c:'#34d399', fmt:v=>v.toFixed(1)+' dB'},
+  volume:  {label:'Volume',     min:0,   max:1.5,  step:.01, def:1,   neutral:1,  c:'#34d399', fmt:v=>Math.round(v*100)+'%'},
+  panSpeed:{label:'8D Speed',   min:0,   max:10,   step:.5,  def:0,   neutral:0,  c:'#60a5fa', fmt:v=>v?v.toFixed(1):'Kapalı'},
+  panWidth:{label:'8D Width',   min:0,   max:1,    step:.05, def:.8,  neutral:0,  c:'#60a5fa', fmt:v=>Math.round(v*100)+'%'},
+  tune:    {label:'Auto-Tune',  min:0,   max:100,  step:1,   def:0,   neutral:0,  c:'#a855f7', fmt:v=>Math.round(v)+'%'},
+  retune:  {label:'Retune',     min:0,   max:50,   step:1,   def:20,  neutral:20, c:'#a855f7', fmt:v=>Math.round(v)+' ms'}
+};
+const ORDER=['speed','pitch','reverb','bass','volume','panSpeed','panWidth','tune','retune'];
+const vals={}, on={};
+ORDER.forEach(id=>{vals[id]=P[id].def;on[id]=true;});
+
+const EQF=[25,40,63,100,160,250,400,630,1000,1600,2500,4000,6300,10000,12500,16000];
+const eqGains={}; EQF.forEach(f=>eqGains[f]=0);
+let exportFmt='mp3-128';
+
+const PRESETS={
+  slowed:{speed:.85,reverb:.5,bass:4},
+  super: {speed:.70,reverb:.62,bass:5,pitch:0},
+  night: {speed:1.25,reverb:.15},
+  '8d':  {panSpeed:3,panWidth:.9,reverb:.35},
+  bass:  {bass:10,volume:.9,reverb:.15},
+  reset: {}
+};
+
+/* ============ KALICI AYARLAR ============ */
+const KEY='kd-sr-v2';
+function save(){try{localStorage.setItem(KEY,JSON.stringify({vals,on,eq:eqGains,fmt:exportFmt}))}catch(e){}}
+function load(){try{
+  const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(!s)return;
+  Object.assign(vals,s.vals||{}); Object.assign(on,s.on||{}); Object.assign(eqGains,s.eq||{}); if(s.fmt)exportFmt=s.fmt;
+}catch(e){}}
+load();
+
+/* ============ DURUM ============ */
+let ctx,buffer,src,nodes,analyser,playing=false,pos=0,lastTick=0,raf=0,theta=0,fileName='sarki';
+const dom={
+  file:$('#file'),drop:$('#drop'),dropTitle:$('#dropTitle'),track:$('#track'),viz:$('#viz'),
+  timeline:$('#timeline'),fill:$('#fill'),dot:$('#dot'),cur:$('#cur'),tot:$('#tot'),
+  play:$('#play'),dockExport:$('#dockExport')
+};
+
+function toast(msg,ms=2600){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('show'),ms);}
+function fmtTime(s){if(!isFinite(s)||s<0)s=0;return String(Math.floor(s/60)).padStart(2,'0')+':'+String(Math.floor(s%60)).padStart(2,'0');}
+
+function getEff(){const e={};for(const id in P)e[id]=on[id]?vals[id]:P[id].neutral;return e;}
+
+/* ============ SES MOTORU ============ */
+function ensureCtx(){
+  if(!ctx){
+    ctx=new (window.AudioContext||window.webkitAudioContext)();
+    analyser=ctx.createAnalyser(); analyser.fftSize=256; analyser.smoothingTimeConstant=.82;
+    analyser.connect(ctx.destination);
+  }
+  try{ if(navigator.audioSession) navigator.audioSession.type='playback'; }catch(e){} // iOS sessiz modda da çalsın
+  if(ctx.state==='suspended') ctx.resume();
+}
+
+function makeIR(c,dur=2.5,decay=2){
+  const len=Math.floor(c.sampleRate*dur), ir=c.createBuffer(2,len,c.sampleRate);
+  for(let ch=0;ch<2;ch++){const d=ir.getChannelData(ch);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay);}
+  return ir;
+}
+
+// Hem canlı çalma hem dışa aktarma aynı grafiği kullanır → duyduğun = kaydettiğin
+function buildGraph(c,source,e,out){
+  let last=source; const eq={};
+  EQF.forEach((f,i)=>{
+    const b=c.createBiquadFilter();
+    b.type=i===0?'lowshelf':(i===EQF.length-1?'highshelf':'peaking');
+    if(b.type==='peaking')b.Q.value=1.2;
+    b.frequency.value=f; b.gain.value=eqGains[f]||0;
+    last.connect(b); last=b; eq[f]=b;
+  });
+  const tune=c.createBiquadFilter(); tune.type='peaking'; tune.Q.value=e.tune/10; tune.frequency.value=440+e.retune*10;
+  const bass=c.createBiquadFilter(); bass.type='lowshelf'; bass.frequency.value=150; bass.gain.value=e.bass;
+  const lp=c.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=160;
+  const hp=c.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=160;
+  const panner=c.createStereoPanner?c.createStereoPanner():c.createGain();
+  const conv=c.createConvolver(); conv.buffer=makeIR(c,2.5,2);
+  const dry=c.createGain(); dry.gain.value=1-e.reverb*.3;
+  const wet=c.createGain(); wet.gain.value=e.reverb;
+  const master=c.createGain(); master.gain.value=e.volume;
+  const limiter=c.createDynamicsCompressor();
+  limiter.threshold.value=-2; limiter.knee.value=0; limiter.ratio.value=20; limiter.attack.value=.003; limiter.release.value=.12;
+
+  last.connect(tune); tune.connect(bass); bass.connect(lp); bass.connect(hp);
+  lp.connect(dry); hp.connect(panner);
+  panner.connect(dry); dry.connect(master);
+  panner.connect(conv); conv.connect(wet); wet.connect(master);
+  master.connect(limiter); limiter.connect(out);
+  return {eq,tune,bass,dry,wet,master,panner};
+}
+
+function applyLive(){
+  if(!playing||!nodes)return;
+  const e=getEff(),t=ctx.currentTime,k=.03;
+  src.playbackRate.setTargetAtTime(e.speed,t,k);
+  src.detune.setTargetAtTime(e.pitch+e.tune*2,t,k);
+  nodes.wet.gain.setTargetAtTime(e.reverb,t,k);
+  nodes.dry.gain.setTargetAtTime(1-e.reverb*.3,t,k);
+  nodes.bass.gain.setTargetAtTime(e.bass,t,k);
+  nodes.master.gain.setTargetAtTime(e.volume,t,k);
+  nodes.tune.Q.value=e.tune/10; nodes.tune.frequency.value=440+e.retune*10;
+}
+
+function play(){
+  if(!buffer||playing)return;
+  ensureCtx();
+  src=ctx.createBufferSource(); src.buffer=buffer;
+  nodes=buildGraph(ctx,src,getEff(),analyser);
+  const e=getEff();
+  src.playbackRate.value=e.speed; src.detune.value=e.pitch+e.tune*2;
+  src.start(0,pos);
+  playing=true; lastTick=performance.now();
+  dom.play.textContent='⏸ Durdur';
+  setMediaSession();
+  raf=requestAnimationFrame(tick);
+}
+function pause(){
+  cancelAnimationFrame(raf);
+  if(src){src.onended=null;try{src.stop()}catch(e){}try{src.disconnect()}catch(e){}}
+  playing=false; dom.play.textContent='▶ Oynat'; drawIdle();
+}
+function ended(){pause();pos=0;updateTime();}
+function tick(now){
+  if(!playing)return;
+  const dt=Math.min((now-lastTick)/1000,.25); lastTick=now;
+  const e=getEff();
+  pos+=dt*e.speed;
+  if(pos>=buffer.duration){ended();return;}
+  if(e.panSpeed>0){theta+=.3*e.panSpeed*e.speed*dt; if(nodes.panner.pan)nodes.panner.pan.value=Math.sin(theta)*e.panWidth;}
+  else if(nodes.panner.pan)nodes.panner.pan.value=0;
+  if(!scrubbing)updateTime();
+  drawViz();
+  raf=requestAnimationFrame(tick);
+}
+function seekTo(sec){
+  const was=playing; if(was)pause();
+  pos=clamp(sec,0,buffer.duration-.05); updateTime();
+  if(was)play();
+}
+function updateTime(frac){
+  if(!buffer)return;
+  const sp=getEff().speed, f=frac!=null?frac:pos/buffer.duration;
+  dom.cur.textContent=fmtTime(f*buffer.duration/sp);
+  dom.tot.textContent=fmtTime(buffer.duration/sp);
+  dom.fill.style.width=(f*100)+'%';
+  dom.dot.style.left=(f*100)+'%';
+}
+
+/* ============ GÖRSELLEŞTİRİCİ ============ */
+const vctx=dom.viz.getContext('2d');
+function sizeViz(){
+  const r=dom.viz.getBoundingClientRect(), d=Math.min(window.devicePixelRatio||1,2);
+  dom.viz.width=Math.max(1,r.width*d); dom.viz.height=Math.max(1,r.height*d); drawIdle();
+}
+function drawBars(arr){
+  const W=dom.viz.width,H=dom.viz.height; vctx.clearRect(0,0,W,H);
+  const n=48,gap=W/n,bw=gap*.62, g=vctx.createLinearGradient(0,H,0,0);
+  g.addColorStop(0,'#06b6d4');g.addColorStop(.55,'#8b5cf6');g.addColorStop(1,'#ec4899');
+  vctx.fillStyle=g;
+  for(let i=0;i<n;i++){
+    const v=arr?arr[Math.floor(i*(arr.length*.72)/n)]/255:0;
+    const h=Math.max(3,v*H*.92), x=i*gap+(gap-bw)/2, r=bw/2;
+    vctx.beginPath(); vctx.roundRect?vctx.roundRect(x,H-h,bw,h,r):vctx.rect(x,H-h,bw,h); vctx.fill();
+  }
+}
+function drawViz(){const a=new Uint8Array(analyser.frequencyBinCount);analyser.getByteFrequencyData(a);drawBars(a);}
+function drawIdle(){drawBars(null);}
+window.addEventListener('resize',sizeViz); sizeViz();
+
+/* ============ DÜĞMELER ============ */
+function paintKnob(id){
+  const p=P[id],v=vals[id],f=(v-p.min)/(p.max-p.min),m=$('#mod-'+id);
+  m.querySelector('.kp').style.strokeDasharray=`${Math.max(.01,f*122.52).toFixed(2)} 163.36`;
+  m.querySelector('.dial').style.transform=`rotate(${f*270-135}deg)`;
+  $('#v-'+id).textContent=p.fmt(v);
+  m.classList.toggle('active',Math.abs(v-p.neutral)>1e-6);
+  m.classList.toggle('off',!on[id]);
+  $('#sw-'+id).classList.toggle('on',on[id]);
+  m.querySelector('.knob').setAttribute('aria-valuenow',v);
+}
+function onParam(id){paintKnob(id);if(id==='speed')updateTime();applyLive();save();}
+function setVal(id,v){
+  const p=P[id]; v=clamp(Math.round(v/p.step)*p.step,p.min,p.max); v=+v.toFixed(4);
+  if(v===vals[id])return; vals[id]=v; onParam(id);
+}
+function buildKnobs(){
+  const grid=$('#fx');
+  ORDER.forEach(id=>{
+    const p=P[id],m=document.createElement('div');
+    m.className='fx'; m.id='mod-'+id; m.style.setProperty('--c',p.c);
+    m.innerHTML=
+      `<div class="fx-label">${p.label}</div>
+       <div class="knob" tabindex="0" role="slider" aria-label="${p.label}" aria-valuemin="${p.min}" aria-valuemax="${p.max}">
+         <svg viewBox="0 0 64 64"><circle class="kt" cx="32" cy="32" r="26" transform="rotate(135 32 32)"/><circle class="kp" cx="32" cy="32" r="26" transform="rotate(135 32 32)"/></svg>
+         <div class="dial"><i></i></div>
+       </div>
+       <div class="fx-val" id="v-${id}"></div>
+       ${id==='retune'?`<div class="keysel"><select aria-label="Anahtar">${['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'].map(k=>`<option ${k==='A'?'selected':''}>${k}</option>`).join('')}</select><select aria-label="Gam"><option>Maj</option><option selected>Min</option></select></div>`:''}
+       <button class="sw on" id="sw-${id}" aria-label="${p.label} aç/kapat"></button>`;
+    grid.appendChild(m);
+    bindKnob(id,m.querySelector('.knob'));
+    $('#sw-'+id).addEventListener('click',()=>{on[id]=!on[id];onParam(id);});
+    paintKnob(id);
+  });
+}
+function bindKnob(id,k){
+  const p=P[id]; let d=null,lastUp=0;
+  k.addEventListener('pointerdown',e=>{
+    if(!on[id])return; k.setPointerCapture(e.pointerId);
+    d={y:e.clientY,x:e.clientX,v:vals[id],moved:false}; e.preventDefault();
+  });
+  k.addEventListener('pointermove',e=>{
+    if(!d)return; const dy=d.y-e.clientY;
+    if(Math.abs(dy)>3||Math.abs(e.clientX-d.x)>3)d.moved=true;
+    setVal(id,d.v+dy/170*(p.max-p.min));
+  });
+  k.addEventListener('pointerup',()=>{
+    if(!d)return;
+    if(!d.moved){const n=Date.now(); if(n-lastUp<320){setVal(id,p.def);lastUp=0;}else lastUp=n;}
+    d=null;
+  });
+  k.addEventListener('pointercancel',()=>{d=null;});
+  k.addEventListener('wheel',e=>{if(!on[id])return;e.preventDefault();setVal(id,vals[id]+(e.deltaY<0?1:-1)*p.step*2);},{passive:false});
+  k.addEventListener('keydown',e=>{
+    const s=p.step*(e.shiftKey?10:1);
+    if(e.key==='ArrowUp'||e.key==='ArrowRight'){setVal(id,vals[id]+s);e.preventDefault();}
+    if(e.key==='ArrowDown'||e.key==='ArrowLeft'){setVal(id,vals[id]-s);e.preventDefault();}
+  });
+}
+function refreshAll(){ORDER.forEach(paintKnob);updateTime();applyLive();save();}
+
+/* ============ EQUALIZER ============ */
+function paintBand(f){
+  const b=$('#band-'+f),db=eqGains[f],pct=(db+12)/24*100;
+  const fill=b.querySelector('.fillb'),th=b.querySelector('.thumb');
+  th.style.top=(100-pct)+'%';
+  if(db>=0){fill.style.top=(50-db/24*100)+'%';fill.style.height=(db/24*100)+'%';}
+  else{fill.style.top='50%';fill.style.height=(-db/24*100)+'%';}
+  b.querySelector('.db').textContent=(db>0?'+':'')+db;
+}
+function setBand(f,db){
+  db=clamp(Math.round(db),-12,12); if(db===eqGains[f])return;
+  eqGains[f]=db; paintBand(f);
+  if(playing&&nodes&&nodes.eq[f])nodes.eq[f].gain.setTargetAtTime(db,ctx.currentTime,.02);
+  save();
+}
+function buildEQ(){
+  const box=$('#eq');
+  EQF.forEach(f=>{
+    const el=document.createElement('div'); el.className='band'; el.id='band-'+f;
+    el.innerHTML=`<div>${f>=1000?(f/1000)+'k':f}</div><div class="track"><div class="rail"></div><div class="mid"></div><div class="fillb"></div><div class="thumb"></div></div><div class="db"></div>`;
+    box.appendChild(el);
+    const tr=el.querySelector('.track'); let act=false;
+    const upd=e=>{const r=tr.getBoundingClientRect();setBand(f,12-((e.clientY-r.top)/r.height)*24);};
+    tr.addEventListener('pointerdown',e=>{act=true;tr.setPointerCapture(e.pointerId);upd(e);e.preventDefault();});
+    tr.addEventListener('pointermove',e=>{if(act)upd(e);});
+    tr.addEventListener('pointerup',()=>act=false); tr.addEventListener('pointercancel',()=>act=false);
+    paintBand(f);
+  });
+}
+
+/* ============ DOSYA İÇE AKTARMA ============ */
+async function loadFile(file){
+  if(!file)return;
+  ensureCtx(); if(playing)pause(); pos=0; theta=0;
+  fileName=(file.name.replace(/\.[^.]+$/,'')||'sarki').replace(/[\\/:*?"<>|]+/g,'_');
+  dom.track.textContent='⏳ Yükleniyor: '+file.name;
+  try{
+    const ab=await file.arrayBuffer();
+    buffer=await new Promise((res,rej)=>{const p=ctx.decodeAudioData(ab,res,rej); if(p&&p.catch)p.catch(rej);});
+  }catch(err){
+    buffer=null; document.body.classList.remove('ready');
+    dom.track.textContent='⚠️ Dosya çözümlenemedi';
+    toast('Bu dosya okunamadı. MP3, M4A veya WAV dene.'); return;
+  }
+  dom.track.textContent='🎶 '+file.name;
+  dom.dropTitle.textContent='Dosyayı Değiştir';
+  document.body.classList.add('ready');
+  dom.play.disabled=false; dom.dockExport.disabled=false;
+  $('#result').hidden=true;
+  updateTime(); toast('Şarkı hazır ✔');
+}
+dom.file.addEventListener('change',e=>{loadFile(e.target.files[0]);e.target.value='';});
+['dragenter','dragover'].forEach(ev=>window.addEventListener(ev,e=>{e.preventDefault();dom.drop.classList.add('over');}));
+['dragleave','drop'].forEach(ev=>window.addEventListener(ev,e=>{e.preventDefault();dom.drop.classList.remove('over');}));
+window.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files[0];if(f)loadFile(f);});
+
+/* ============ ZAMAN ÇUBUĞU ============ */
+let scrubbing=false,scrubFrac=0;
+function fracFrom(e){const r=dom.timeline.getBoundingClientRect();return clamp((e.clientX-r.left)/r.width,0,1);}
+dom.timeline.addEventListener('pointerdown',e=>{if(!buffer)return;scrubbing=true;dom.timeline.setPointerCapture(e.pointerId);scrubFrac=fracFrom(e);updateTime(scrubFrac);});
+dom.timeline.addEventListener('pointermove',e=>{if(!scrubbing)return;scrubFrac=fracFrom(e);updateTime(scrubFrac);});
+dom.timeline.addEventListener('pointerup',()=>{if(!scrubbing)return;scrubbing=false;seekTo(scrubFrac*buffer.duration);});
+dom.timeline.addEventListener('pointercancel',()=>{scrubbing=false;});
+
+/* ============ BUTONLAR ============ */
+dom.play.addEventListener('click',()=>{if(!buffer)return;playing?pause():play();});
+$('#restart').addEventListener('click',()=>{if(buffer)seekTo(0);});
+$('#back').addEventListener('click',()=>{if(buffer)seekTo(pos-10);});
+$('#fwd').addEventListener('click',()=>{if(buffer)seekTo(pos+10);});
+$('#rackReset').addEventListener('click',()=>{ORDER.forEach(id=>{vals[id]=P[id].def;on[id]=true;});refreshAll();});
+$('#eqReset').addEventListener('click',()=>{EQF.forEach(f=>setBand(f,0));});
+$$('.chip').forEach(c=>c.addEventListener('click',()=>{
+  const pr=PRESETS[c.dataset.p]||{};
+  ORDER.forEach(id=>{vals[id]=pr[id]!==undefined?pr[id]:P[id].def;on[id]=true;});
+  refreshAll(); toast('Ayar uygulandı: '+c.textContent.trim());
+}));
+
+function setMediaSession(){
+  if(!('mediaSession' in navigator))return;
+  try{
+    navigator.mediaSession.metadata=new MediaMetadata({title:fileName,artist:'KD Slowed & Reverb'});
+    navigator.mediaSession.setActionHandler('play',()=>play());
+    navigator.mediaSession.setActionHandler('pause',()=>pause());
+  }catch(e){}
+}
+
+/* ============ DIŞA AKTARMA ============ */
+$$('#fmt button').forEach(b=>b.addEventListener('click',()=>{exportFmt=b.dataset.f;paintFmt();save();}));
+function paintFmt(){$$('#fmt button').forEach(b=>b.classList.toggle('on',b.dataset.f===exportFmt));}
+
+async function renderOffline(e){
+  const sr=[32000,44100,48000].includes(buffer.sampleRate)?buffer.sampleRate:44100;
+  const dur=buffer.duration/e.speed+(e.reverb>0?2.6:.4);
+  const oc=new OfflineAudioContext(2,Math.ceil(dur*sr),sr);
+  const s=oc.createBufferSource(); s.buffer=buffer; s.playbackRate.value=e.speed; s.detune.value=e.pitch+e.tune*2;
+  const g=buildGraph(oc,s,e,oc.destination);
+  if(e.panSpeed>0&&g.panner.pan){
+    for(let t=0;t<dur;t+=.02)g.panner.pan.setValueAtTime(Math.sin(.3*e.panSpeed*e.speed*t)*e.panWidth,t);
+  }
+  s.start(0);
+  return oc.startRendering();
+}
+const toI16=f=>{const o=new Int16Array(f.length);for(let i=0;i<f.length;i++){const s=clamp(f[i],-1,1);o[i]=s<0?s*32768:s*32767;}return o;};
+async function encodeMp3(rb,kbps,onP){
+  const l=toI16(rb.getChannelData(0)),r=toI16(rb.getChannelData(1));
+  const enc=new lamejs.Mp3Encoder(2,rb.sampleRate,kbps),out=[],size=1152;let n=0;
+  for(let i=0;i<l.length;i+=size){
+    const ch=enc.encodeBuffer(l.subarray(i,i+size),r.subarray(i,i+size)); if(ch.length)out.push(ch);
+    if(++n%150===0){onP(i/l.length);await sleep(0);}
+  }
+  const f=enc.flush(); if(f.length)out.push(f);
+  return new Blob(out,{type:'audio/mpeg'});
+}
+function encodeWav(rb){
+  const ch=2,len=rb.length,sr=rb.sampleRate,buf=new ArrayBuffer(44+len*ch*2),v=new DataView(buf);
+  const w=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  w(0,'RIFF');v.setUint32(4,36+len*ch*2,true);w(8,'WAVE');w(12,'fmt ');v.setUint32(16,16,true);v.setUint16(20,1,true);
+  v.setUint16(22,ch,true);v.setUint32(24,sr,true);v.setUint32(28,sr*ch*2,true);v.setUint16(32,ch*2,true);v.setUint16(34,16,true);
+  w(36,'data');v.setUint32(40,len*ch*2,true);
+  const L=rb.getChannelData(0),R=rb.getChannelData(1);let o=44;
+  for(let i=0;i<len;i++){for(const d of [L,R]){const s=clamp(d[i],-1,1);v.setInt16(o,s<0?s*32768:s*32767,true);o+=2;}}
+  return new Blob([buf],{type:'audio/wav'});
+}
+
+let resBlob=null,resName='',resUrl='',busy=false;
+const prog=$('#prog'),progBar=$('#progBar'),progTxt=$('#progTxt'),renderBtn=$('#render');
+function setProg(p,t){progBar.style.width=(p*100)+'%';progTxt.textContent=t;}
+
+async function doExport(){
+  if(!buffer||busy)return;
+  if(exportFmt.startsWith('mp3')&&typeof lamejs==='undefined'){
+    toast('MP3 kodlayıcı yüklenemedi (internet?). WAV formatını dene.',4000); return;
+  }
+  busy=true; if(playing)pause();
+  renderBtn.disabled=true; dom.dockExport.disabled=true; $('#result').hidden=true; prog.hidden=false;
+  $('#export').scrollIntoView({behavior:'smooth',block:'center'});
+  try{
+    setProg(.05,'Efektler uygulanıyor…');
+    const rb=await renderOffline(getEff());
+    setProg(.35,'Dosya hazırlanıyor…'); await sleep(30);
+    let blob,ext;
+    if(exportFmt==='wav'){blob=encodeWav(rb);ext='wav';}
+    else{
+      const kb=exportFmt==='mp3-320'?320:128;
+      blob=await encodeMp3(rb,kb,p=>setProg(.35+p*.65,'MP3 yapılıyor… %'+Math.round(p*100)));
+      ext='mp3';
+    }
+    setProg(1,'Tamamlandı ✔');
+    resBlob=blob; resName=`${fileName}_slowed_reverb.${ext}`;
+    if(resUrl)URL.revokeObjectURL(resUrl);
+    resUrl=URL.createObjectURL(blob);
+    $('#resAudio').src=resUrl;
+    $('#resMeta').textContent=`${resName} · ${(blob.size/1048576).toFixed(2)} MB`;
+    $('#result').hidden=false; await sleep(400); prog.hidden=true;
+    $('#result').scrollIntoView({behavior:'smooth',block:'nearest'});
+  }catch(err){
+    console.error(err); prog.hidden=true;
+    toast('Dışa aktarma başarısız oldu. Daha kısa bir şarkı veya WAV dene.',4500);
+  }finally{busy=false;renderBtn.disabled=false;dom.dockExport.disabled=false;}
+}
+renderBtn.addEventListener('click',doExport);
+dom.dockExport.addEventListener('click',doExport);
+
+function download(){
+  if(!resBlob)return;
+  const a=document.createElement('a');a.href=resUrl;a.download=resName;document.body.appendChild(a);a.click();a.remove();
+}
+async function shareRes(){
+  if(!resBlob)return;
+  const f=new File([resBlob],resName,{type:resBlob.type});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){
+    try{await navigator.share({files:[f],title:resName});}
+    catch(e){if(e.name!=='AbortError')download();}
+  }else download();
+}
+$('#dl').addEventListener('click',download);
+$('#share').addEventListener('click',shareRes);
+
+/* ============ PWA ============ */
+let deferred=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('#installBtn').hidden=false;});
+$('#installBtn').addEventListener('click',async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;$('#installBtn').hidden=true;});
+if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+
+/* ============ BAŞLAT ============ */
+buildKnobs(); buildEQ(); paintFmt(); updateTime();
+})();
+</script>
+</body>
+</html>
